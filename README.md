@@ -1,3 +1,29 @@
+
+MusicBox ~ hy Edition
+=================
+网易云音乐命令行版本，适合小窗，简洁优雅，丝般顺滑，基于Python编写。
+
+[![platform](https://img.shields.io/badge/python-3.5-green.svg)]()
+
+更新日志
+
+0.2.6.0~hy: 1. 通过mpg123的stdin播放音频，此模式下可以看歌曲的下载进度条. 2. 菜单缩进减少，更适合小窗，修复窗口resize问题.
+
+0.2.5.3 : 原版 musicbox
+
+已测试：
+
+	* Ubuntu 16.04 LTS
+	* mpg123 1.22.4
+	* python 3.5.2
+
+### 安装与运行
+	1. 安装mpg123
+	2. clone this to /path/to/musicbox
+	3. python3 -m /path/to/musicbox/NEMbox
+
+## 以下是原README
+
 NetEase-MusicBox
 =================
 
@@ -45,8 +71,6 @@ NetEase-MusicBox
 	<tr> <td>F</td> <td>Search</td> <td>快速搜索</td> </tr>
 	<tr> <td>[</td> <td>Prev song</td> <td>上一曲</td> </tr>
 	<tr> <td>]</td> <td>Next song</td> <td>下一曲</td> </tr>
-	<tr> <td>=</td> <td>Volume +</td> <td>音量增加</td> </tr>
-	<tr> <td>-</td> <td>Volume -</td> <td>音量减少</td> </tr>
 	<tr> <td>Space</td> <td>Play/Pause</td> <td>播放/暂停</td> </tr>
     <tr> <td>?</td> <td>Shuffle</td> <td>手气不错</td> </tr>
 	<tr> <td>M</td> <td>Menu</td> <td>主菜单</td> </tr>
