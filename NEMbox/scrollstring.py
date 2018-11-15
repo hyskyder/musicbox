@@ -19,16 +19,16 @@ class scrollstring(object):
     def update(self):
         self.display = self.content
         curTime = time() // 1
-        offset = max(int((curTime - self.START) % len(self.content)) - 1, 0)
-        while offset > 0:
-            if self.display[0] > chr(127):
-                offset -= 1
-                self.display = self.display[3:] + self.display[:3]
-            else:
-                offset -= 1
-                self.display = self.display[1:] + self.display[:1]
+        offset = max(int((curTime - self.START) % len(self.content)), 0)
+        # while offset > 0:
+        #     if self.display[0] > chr(127):
+        #         offset -= 1
+        #         self.display = self.display[3:] + self.display[:3]
+        #     else:
+        #         offset -= 1
+        #         self.display = self.display[1:] + self.display[:1]
 
-        # self.display = self.content[offset:] + self.content[:offset]
+        self.display = self.content[offset:] + self.content[:offset]
 
     def __repr__(self):
         return self.display

@@ -90,7 +90,8 @@ class Ui(object):
             try:
                 self.screen.addstr(args[0], args[1], args[2].encode('utf-8'), *args[3:])
             except Exception as e:
-                log.error(str(e)+"; args="+str(args))
+                log.error(str(e)+"; args="+str(args)+
+                'when screen(y,x)='+str(self.y)+", "+str(self.x)+")")
 
     def build_playinfo(self,
                        song_name,
@@ -298,22 +299,25 @@ class Ui(object):
                             self.indented_startcol + len(lead), name,
                             curses.color_pair(2))
                     else:
-                        name = scrollstring(name + '  ', start)
+                        name = str(scrollstring(name + '  ', start))[0:self.x-self.indented_startcol + len(lead)]
+                        while self.indented_startcol + len(lead)+truelen(name) >= self.x :
+                            name=name[:-1]
                         self.addstr(
                             i - offset + 8,
-                            self.indented_startcol + len(lead), str(name),
+                            self.indented_startcol + len(lead), name,
                             curses.color_pair(2))
                 else:
                     self.addstr(i - offset + 8, 0,
                                 ' ' * self.startcol)
-                    self.addstr(
-                        i - offset + 8, self.startcol,
-                        '{}. {}{}{}  < {} >'.format(
+                    display_string='{}. {}{}{}  < {} >'.format(
                             i, datalist[i]['song_name'], self.space,
                             datalist[i]['artist'],
-                            datalist[i]['album_name'])[:int(self.x * 2)])
+                            datalist[i]['album_name'])[0:self.x]
+                    while self.startcol+truelen(display_string) >= self.x :
+                        display_string=display_string[:-1]
+                    self.addstr(i - offset + 8, self.startcol,display_string)
 
-            self.addstr(iter_range - offset + 8, 0, ' ' * self.x)
+            self.addstr(iter_range - offset + 8, 0, ' ' * (self.x-1))
 
         elif datatype == 'comments':
             # 被选中的评论在最下方显示全部字符，其余评论仅显示一行
