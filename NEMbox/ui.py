@@ -68,8 +68,8 @@ class Ui(object):
         # term resize handling
         size = terminalsize.get_terminal_size()
         self.x = max(size[0], 10)
-        self.y = max(size[1], 25)
-        self.startcol = int(float(self.x) / 5)
+        self.y = max(size[1], 8)
+        self.startcol = 3
         self.indented_startcol = max(self.startcol - 3, 0)
         self.update_space()
         self.lyric = ''
@@ -85,10 +85,13 @@ class Ui(object):
         if len(args) == 1:
             self.screen.addstr(args[0])
         else:
+            if args[0]>=self.y or args[1]>=self.x :
+                return
             try:
                 self.screen.addstr(args[0], args[1], args[2].encode('utf-8'), *args[3:])
             except Exception as e:
-                log.error(e)
+                log.error(str(e)+"; args="+str(args))
+
     def build_playinfo(self,
                        song_name,
                        artist,
@@ -98,6 +101,8 @@ class Ui(object):
                        pause=False):
         curses.noecho()
         # refresh top 2 line
+        self.screen.move(0, 1)
+        self.screen.clrtoeol()
         self.screen.move(1, 1)
         self.screen.clrtoeol()
         self.screen.move(2, 1)
@@ -118,8 +123,9 @@ class Ui(object):
 
     def build_process_bar(self,
                           song,
-                          now_playing,
+                          current_pos,
                           total_length,
+                          download_percent,
                           playing_flag,
                           playing_mode):
 
@@ -137,41 +143,44 @@ class Ui(object):
         self.screen.clrtoeol()
         if total_length <= 0:
             total_length = 1
-        if now_playing > total_length or now_playing <= 0:
-            now_playing = 0
-        if now_playing == 0:
+        if current_pos > total_length or current_pos < 0.5:
+            current_pos = 0
+        if current_pos == 0:
             self.now_lyric_index = 0
             self.now_lyric = ''
             self.post_lyric = ''
-        process = '['
-        for i in range(0, 33):
-            if i < now_playing / total_length * 33:
-                if (i + 1) > now_playing / total_length * 33:
-                    if playing_flag:
-                        process += '>'
-                        continue
-                process += '='
-            else:
-                process += ' '
-        process += '] '
-
-        now = str(datetime.timedelta(seconds=now_playing)).lstrip('0').lstrip(':')
-        total = str(datetime.timedelta(seconds=total_length)).lstrip('0').lstrip(':')
-        process += '({}/{})'.format(now, total)
-
         if playing_mode == 0:
-            process = '顺序播放 ' + process
+            process = '顺序播放 ' 
         elif playing_mode == 1:
-            process = '顺序循环 ' + process
+            process = '顺序循环 ' 
         elif playing_mode == 2:
-            process = '单曲循环 ' + process
+            process = '单曲循环 ' 
         elif playing_mode == 3:
-            process = '随机播放 ' + process
+            process = '随机播放 ' 
         elif playing_mode == 4:
-            process = '随机循环 ' + process
+            process = '随机循环 ' 
         else:
             pass
-        self.addstr(3, self.startcol - 2, process, curses.color_pair(1))
+        process += '['
+        now = str(datetime.timedelta(seconds=current_pos)).lstrip('0').lstrip(':')
+        total = str(datetime.timedelta(seconds=total_length)).lstrip('0').lstrip(':')
+        barspace=max(self.x-1-truelen(process)-3-truelen(now)-1-truelen(total)-2,0)
+        # log.debug("self.x="+str(self.x)+", barspace="+str(barspace))
+        len_current_pos = max( int(barspace * current_pos / total_length) - 1, 0 )
+        process += '=' * len_current_pos
+        process += '>' if playing_flag else ')' 
+        len_current_pos+=1
+        if download_percent:
+            len_download_bar=max( int(barspace * download_percent) - len_current_pos, 0 ) 
+            process += '-' * len_download_bar
+            process += ' ' * max( barspace - len_current_pos - len_download_bar, 0 )
+        else:
+            process += ' ' * max( barspace - len_current_pos , 0 )
+        process += '] '
+        process += '({}/{})'.format(now, total)
+
+
+        self.addstr(3, 1, process, curses.color_pair(1))
         if not lyrics:
             self.now_lyric = '暂无歌词 ~>_<~ \n'
             self.post_lyric = ''
@@ -528,14 +537,14 @@ class Ui(object):
         # get terminal size
         size = terminalsize.get_terminal_size()
         x = max(size[0], 10)
-        y = max(size[1], 25)
+        y = max(size[1], 8)
         if (x, y) == (self.x, self.y):  # no need to resize
             return
         self.x, self.y = x, y
 
         # update intendations
         curses.resizeterm(self.y, self.x)
-        self.startcol = int(float(self.x) / 5)
+        self.startcol = 3
         self.indented_startcol = max(self.startcol - 3, 0)
         self.update_space()
         self.screen.clear()

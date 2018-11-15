@@ -10,11 +10,19 @@ from __future__ import (
 )
 
 import json
+import os
 from collections import OrderedDict
 from http.cookiejar import LWPCookieJar
 
 import requests
 import requests_cache
+import threading
+from contextlib import closing
+try:
+    import queue
+except:
+    import Queue as queue
+
 
 from .config import Config
 from .storage import Storage
@@ -552,3 +560,77 @@ class NetEase(object):
             return PLAYLIST_CLASSES[data]
         else:
             raise ValueError('Invalid dig type')
+
+class MusicStreamer(threading.Thread):
+    MAX_CHUNK_SIZE=65536
+
+    def __init__(self,url,chunk_size=None):
+        threading.Thread.__init__(self)
+        self.url=url
+        self._is_file=os.path.exists(self.url)
+        self.chunk_size=chunk_size
+        self.buffer=queue.Queue()
+        self.received_percent=None
+        self.retcode=255
+        self.shutdown_signal=threading.Event()
+    
+    def __network_streamming(self):
+        headers={
+            'Accept': '*/*',
+            'Accept-Encoding': 'gzip,deflate,sdch',
+            'Accept-Language': 'zh-CN,zh;q=0.8,gl;q=0.6,zh-TW;q=0.4',
+            'Connection': 'keep-alive',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Host': 'music.163.com',
+            'Referer': 'http://music.163.com',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.115 Safari/537.36',
+        }
+        s = requests.Session()
+        with s.cache_disabled(): # requests-cache is not compatible with stream=True
+            try:
+                with closing(s.get(self.url, headers=headers, stream=True, timeout=5)) as r:
+                    if r.status_code == 200:
+                        song_size=int(r.headers['content-length']) if ('content-length' in r.headers) else None
+                        received=0
+                        for chunk in r.iter_content(chunk_size=self.chunk_size if self.chunk_size else 4096):
+                            if not chunk or self.shutdown_signal.is_set():
+                                break
+                            received+=len(chunk)
+                            self.buffer.put(chunk)
+                            self.received_percent = max(0,min(received/song_size,1)) if song_size else None
+                    else:
+                        self.retcode=r.status_code
+                        raise Exception("Bad response="+str(r.status_code))
+                
+            except TimeoutError:
+                self.retcode=1
+                self.shutdown_signal.set()
+            except Exception as e:
+                log.error(e)
+                self.shutdown_signal.set()
+            else:
+                self.retcode=0
+                      
+    def run(self):
+        if self._is_file:
+            self.received_percent=100
+            if self.chunk_size is None:
+                self.chunk_size = 65536
+            with open(self.url,'rb') as f:
+                while True:
+                    chunk = f.read(self.chunk_size)
+                    if chunk:
+                        self.buffer.put(chunk)
+                    else:
+                        break
+            self.retcode=0
+        else:
+            self.__network_streamming()
+        self.buffer.put(b"#END#")
+        log.debug("Streamer: exit, retcode="+str(self.retcode))
+    
+    def poll(self):
+        if self.is_alive():
+            return None
+        else:
+            return self.retcode

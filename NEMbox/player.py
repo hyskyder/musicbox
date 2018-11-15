@@ -15,17 +15,18 @@ from __future__ import (
 import subprocess
 import threading
 import time
-import os
+import os,signal
 import random
 
 from future.builtins import str
 
 from .ui import Ui
 from .storage import Storage
-from .api import NetEase
+from .api import NetEase, MusicStreamer
 from .cache import Cache
 from .config import Config
 from .utils import notify
+from .const import WALKAROUND
 
 from . import logger
 
@@ -39,9 +40,9 @@ class Player(object):
     MODE_RANDOM = 3
     MODE_RANDOM_LOOP = 4
 
-    def __init__(self):
+    def __init__(self,ui_instance):
         self.config = Config()
-        self.ui = Ui()
+        self.ui = ui_instance
         self.popen_handler = None
         # flag stop, prevent thread start
         self.playing_flag = False
@@ -52,6 +53,7 @@ class Player(object):
         self.end_callback = None
         self.playing_song_changed_callback = None
         self.api = NetEase()
+        self.download_percent=None
 
     @property
     def info(self):
@@ -174,15 +176,24 @@ class Player(object):
             return
 
         self.playing_flag = False
-        self.popen_handler.stdin.write(b'Q\n')
-        self.popen_handler.stdin.flush()
-        self.popen_handler.kill()
+        if not WALKAROUND.mpg123_Stdin_Direct_Mode:
+            self.popen_handler.stdin.write(b'Q\n')
+            self.popen_handler.stdin.flush()
+            self.popen_handler.stdin.close()
+            time.sleep(0.05)
+        
+        if self.popen_handler is not None and self.popen_handler.poll() is None:
+            self.popen_handler.kill()
+            time.sleep(0.05)
+        while self.popen_handler is not None and self.popen_handler.poll() is None:
+            self.popen_handler.terminate()
+            time.sleep(0.05)
+
         self.popen_handler = None
-        # wait process to be killed
-        time.sleep(0.01)
+        
 
     def tune_volume(self, up=0):
-        if not self.popen_handler:
+        if not self.popen_handler or WALKAROUND.mpg123_Stdin_Direct_Mode:
             return
 
         new_volume = self.info['playing_volume'] + up
@@ -202,55 +213,135 @@ class Player(object):
             return
 
         self.playing_flag = not self.playing_flag
-        self.popen_handler.stdin.write(b'P\n')
-        self.popen_handler.stdin.flush()
-
+        if WALKAROUND.mpg123_Stdin_Direct_Mode:
+            if self.playing_flag:
+                self.popen_handler.send_signal(signal.SIGCONT)
+            else:
+                self.popen_handler.send_signal(signal.SIGSTOP)
+        else:
+            self.popen_handler.stdin.write(b'P\n')
+            self.popen_handler.stdin.flush()
+        
         self.build_playinfo()
-
+    
     def run_mpg123(self, on_exit, url):
-        para = ['mpg123', '-R'] + self.config_mpg123
-        self.popen_handler = subprocess.Popen(
-            para,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
+        def feed_mpg123_worker(buffer,pipe,source_alive=lambda : False,MAX_WAIT=64):
+            wait_blocks=2
+            while buffer.qsize()<4 and source_alive():
+                time.sleep(0.25)
+            for chunk in iter(buffer.get,b"#END#"):
+                try:
+                    pipe.buffer.write(chunk)
+                    if buffer.empty():
+                        wait_blocks=min(wait_blocks*2,MAX_WAIT)
+                        while buffer.qsize()<wait_blocks and source_alive():
+                            time.sleep(0.25)
+                except Exception as e:
+                    log.warning(e)
+                    break
+            try:
+                pipe.close()
+            except:
+                pass
+            log.debug("Feed: Exit.")
 
-        self.tune_volume()
-        self.popen_handler.stdin.write(b'L ' + url.encode('utf-8') + b'\n')
-        self.popen_handler.stdin.flush()
+        if WALKAROUND.mpg123_Stdin_Direct_Mode:
+            download_thread=MusicStreamer(url.encode('utf-8'))
+            download_thread.start()
+            self.download_percent=None
+            local_popen_handler = subprocess.Popen(
+                ['mpg123', '-v','-'] + self.config_mpg123,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+                universal_newlines=True,bufsize=0
+            )
+            self.popen_handler=local_popen_handler
+            feed_thread = threading.Thread(target=feed_mpg123_worker,
+                args=(download_thread.buffer,local_popen_handler.stdin,download_thread.is_alive))
+            feed_thread.start()
+            play_next = False
+            try:
+                for line in iter(local_popen_handler.stderr.readline, ""):
+                    if line.startswith("Frame#"):
+                        '''Frame#  1000 [ 9619], Time: 00:20.33 [04:17.05], RVA:   off, Vol: 100(100), [ 1020092]'''
+                        playtime=line.split(',')[1]
+                        current_pos=float(playtime[7:9])*60+float(playtime[10:15])
+                        self.process_location = int(current_pos)
+                        self.process_length = 60*int(playtime[17:19])+int(current_pos+float(playtime[20:25]))
+                        self.download_percent=download_thread.received_percent
+                    elif "finished" in line:
+                        play_next = True
+                        break
+                    elif "err" in line:
+                        log.debug("mgp123: "+line.strip())
+                    if download_thread.poll() is not None and download_thread.poll()>0:
+                        break
+                    if self.popen_handler is None or local_popen_handler.poll() is not None:
+                        break
+            except Exception as e:
+                log.note(e)
+                play_next = False
+            self.playing_flag = play_next
+            download_thread.shutdown_signal.set()
 
-        endless_loop_cnt = 0
-        while True:
-            if not self.popen_handler:
-                break
+        else:
+            para = ['mpg123', '-R'] + self.config_mpg123
+            self.popen_handler = subprocess.Popen(
+                para,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
 
-            strout = self.popen_handler.stdout.readline().decode('utf-8').strip()
-            if strout[:2] == '@F':
-                # playing, update progress
-                out = strout.split(' ')
-                self.process_location = int(float(out[3]))
-                self.process_length = int(float(out[3]) + float(out[4]))
-            elif strout[:2] == '@E':
-                # error, stop song and move to next
-                self.playing_flag = True
-                self.notify_copyright_issue()
-                break
-            elif strout == '@P 0':
-                # end, moving to next
-                self.playing_flag = True
-                break
-            elif strout == '':
-                endless_loop_cnt += 1
-                # 有播放后没有退出，mpg123一直在发送空消息的情况，此处直接终止处理
-                if endless_loop_cnt > 100:
-                    log.warning('mpg123 error, halt, endless loop and high cpu use, then we kill it')
+            self.tune_volume()
+            self.popen_handler.stdin.write(b'L ' + url.encode('utf-8') + b'\n')
+            self.popen_handler.stdin.flush()
+
+            endless_loop_cnt = 0
+            while True:
+                if not self.popen_handler:
                     break
 
-        if self.playing_flag:
+                if self.popen_handler.poll() is not None:
+                    break
+
+                strout = self.popen_handler.stdout.readline().decode('utf-8').strip()
+                if strout[:2] == '@F':
+                    # playing, update progress
+                    out = strout.split(' ')
+                    self.process_location = int(float(out[3]))
+                    self.process_length = int(float(out[3]) + float(out[4]))
+                elif strout[:2] == '@E':
+                    # error, stop song and move to next
+                    self.playing_flag = True
+                    self.notify_copyright_issue()
+                    break
+                elif strout == '@P 0':
+                    # end, moving to next
+                        self.playing_flag = True
+                        break
+                elif strout == '':
+                    endless_loop_cnt += 1
+                    # 有播放后没有退出，mpg123一直在发送空消息的情况，此处直接终止处理
+                    if endless_loop_cnt > 100:
+                        log.warning('mpg123 error, halt, endless loop and high cpu use, then we kill it')
+                        break
+
+            if self.playing_flag:
+                self.next()
+            else:
+                self.stop()
+
+        if local_popen_handler.poll() is None:
+            local_popen_handler.terminate()
+        del local_popen_handler
+        
+        download_thread.join()
+        feed_thread.join()
+
+        if play_next:
             self.next()
-        else:
-            self.stop()
 
     def download_lyric(self, is_transalted=False):
         key = 'lyric' if not is_transalted else 'tlyric'

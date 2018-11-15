@@ -97,10 +97,10 @@ class Menu(object):
         self.storage = Storage()
         self.storage.load()
         self.collection = self.storage.database['collections']
-        self.player = Player()
+        self.ui = Ui()
+        self.player = Player(self.ui)
         self.player.playing_song_changed_callback = self.song_changed_callback
         self.cache = Cache()
-        self.ui = Ui()
         self.api = NetEase()
         self.screen = curses.initscr()
         self.screen.keypad(1)
@@ -598,7 +598,7 @@ class Menu(object):
 
             self.ui.build_process_bar(
                 self.player.current_song,
-                self.player.process_location, self.player.process_length,
+                self.player.process_location, self.player.process_length, self.player.download_percent,
                 self.player.playing_flag, self.player.info['playing_mode']
             )
             self.ui.build_menu(self.datatype, self.title, self.datalist,

@@ -12,3 +12,6 @@ class Constant(object):
     storage_path = os.path.join(conf_dir, 'database.json')
     cookie_path = os.path.join(conf_dir, 'cookie')
     log_path = os.path.join(conf_dir, 'musicbox.log')
+
+class WALKAROUND(object):
+    mpg123_Stdin_Direct_Mode=True
