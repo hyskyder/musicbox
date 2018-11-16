@@ -588,7 +588,7 @@ class MusicStreamer(threading.Thread):
         s = requests.Session()
         with s.cache_disabled(): # requests-cache is not compatible with stream=True
             try:
-                with closing(s.get(self.url, headers=headers, stream=True, timeout=5)) as r:
+                with closing(s.get(self.url, headers=headers, stream=True, timeout=(5,8))) as r:
                     if r.status_code == 200:
                         song_size=int(r.headers['content-length']) if ('content-length' in r.headers) else None
                         received=0
@@ -613,7 +613,7 @@ class MusicStreamer(threading.Thread):
                       
     def run(self):
         if self._is_file:
-            self.received_percent=100
+            self.received_percent=1
             if self.chunk_size is None:
                 self.chunk_size = 65536
             with open(self.url,'rb') as f:

@@ -248,7 +248,10 @@ class Player(object):
         if WALKAROUND.mpg123_Stdin_Direct_Mode:
             download_thread=MusicStreamer(url.encode('utf-8'))
             download_thread.start()
+            self.process_location = 0
+            self.process_length = 1
             self.download_percent=None
+        
             local_popen_handler = subprocess.Popen(
                 ['mpg123', '-v','-'] + self.config_mpg123,
                 stdin=subprocess.PIPE,
@@ -276,6 +279,8 @@ class Player(object):
                     elif "err" in line:
                         log.debug("mgp123: "+line.strip())
                     if download_thread.poll() is not None and download_thread.poll()>0:
+                        if download_thread.poll() == 403:
+                            play_next = True
                         break
                     if self.popen_handler is None or local_popen_handler.poll() is not None:
                         break

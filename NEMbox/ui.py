@@ -166,8 +166,8 @@ class Ui(object):
         now = str(datetime.timedelta(seconds=current_pos)).lstrip('0').lstrip(':')
         total = str(datetime.timedelta(seconds=total_length)).lstrip('0').lstrip(':')
         barspace=max(self.x-1-truelen(process)-3-truelen(now)-1-truelen(total)-2,0)
-        # log.debug("self.x="+str(self.x)+", barspace="+str(barspace))
         len_current_pos = max( int(barspace * current_pos / total_length) - 1, 0 )
+        # log.debug("self.x="+str(self.x)+", barspace="+str(barspace)+"; CurrentPos="+str(len_current_pos)+"; DownPercent="+str(download_percent))
         process += '=' * len_current_pos
         process += '>' if playing_flag else ')' 
         len_current_pos+=1
