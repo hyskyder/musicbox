@@ -68,7 +68,7 @@ class Ui(object):
         # term resize handling
         size = terminalsize.get_terminal_size()
         self.x = max(size[0], 10)
-        self.y = max(size[1], 8)
+        self.y = max(size[1], 3)
         self.startcol = 3
         self.indented_startcol = max(self.startcol - 3, 0)
         self.update_space()
@@ -101,22 +101,18 @@ class Ui(object):
                        start,
                        pause=False):
         curses.noecho()
-        # refresh top 2 line
-        self.screen.move(0, 1)
-        self.screen.clrtoeol()
-        self.screen.move(1, 1)
-        self.screen.clrtoeol()
-        self.screen.move(2, 1)
-        self.screen.clrtoeol()
+        # refresh top 3 line
+        for x in [0,1,2]:
+            self.addstr(x, 0, ' ' * self.x)
         if pause:
-            self.addstr(1, self.indented_startcol,
+            self.addstr(0, self.indented_startcol,
                         '_ _ z Z Z ' + quality, curses.color_pair(3))
         else:
-            self.addstr(1, self.indented_startcol,
+            self.addstr(0, self.indented_startcol,
                         '♫  ♪ ♫  ♪ ' + quality, curses.color_pair(3))
 
         self.addstr(
-            1, min(self.indented_startcol + 18, self.x - 1),
+            0, min(self.indented_startcol + 18, self.x - 1),
             song_name + self.space + artist + '  < ' + album_name + ' >',
             curses.color_pair(4))
 
@@ -136,12 +132,8 @@ class Ui(object):
         lyrics, tlyrics = song.get('lyric', []), song.get('tlyric', [])
 
         curses.noecho()
-        self.screen.move(3, 1)
-        self.screen.clrtoeol()
-        self.screen.move(4, 1)
-        self.screen.clrtoeol()
-        self.screen.move(5, 1)
-        self.screen.clrtoeol()
+        for x in [3,4,5]:
+            self.addstr(x, 0, ' ' * self.x)
         if total_length <= 0:
             total_length = 1
         if current_pos > total_length or current_pos < 0.5:
@@ -179,9 +171,11 @@ class Ui(object):
             process += ' ' * max( barspace - len_current_pos , 0 )
         process += '] '
         process += '({}/{})'.format(now, total)
+        self.addstr(2, 1, process, curses.color_pair(1))
 
+        if self.x <= 3:
+            return
 
-        self.addstr(3, 1, process, curses.color_pair(1))
         if not lyrics:
             self.now_lyric = '暂无歌词 ~>_<~ \n'
             self.post_lyric = ''
@@ -232,14 +226,14 @@ class Ui(object):
         # 根据索引计算双行歌词的显示，其中当前歌词颜色为红色，下一句歌词颜色为白色；
         # 当前歌词从下一句歌词刷新颜色变换，所以当前歌词和下一句歌词位置会交替
         if self.now_lyric_index % 2 == 0:
-            self.addstr(4, self.startcol - 2, str(self.now_lyric),
+            self.addstr(3, self.startcol - 2, str(self.now_lyric),
                         curses.color_pair(3))
-            self.addstr(5, self.startcol + 1, str(self.post_lyric),
+            self.addstr(4, self.startcol + 1, str(self.post_lyric),
                         curses.A_DIM)
         else:
-            self.addstr(4, self.startcol - 2, str(self.post_lyric),
+            self.addstr(3, self.startcol - 2, str(self.post_lyric),
                         curses.A_DIM)
-            self.addstr(5, self.startcol + 1, str(self.now_lyric),
+            self.addstr(4, self.startcol + 1, str(self.now_lyric),
                         curses.color_pair(3))
         self.screen.refresh()
 
@@ -256,8 +250,7 @@ class Ui(object):
                    start):
         # keep playing info in line 1
         curses.noecho()
-        self.screen.move(7, 1)
-        self.screen.clrtobot()
+        self.addstr(7, 0, ' ' * self.x)
         self.addstr(7, self.startcol, title, curses.color_pair(1))
 
         if len(datalist) == 0:
@@ -541,7 +534,7 @@ class Ui(object):
         # get terminal size
         size = terminalsize.get_terminal_size()
         x = max(size[0], 10)
-        y = max(size[1], 8)
+        y = max(size[1], 3)
         if (x, y) == (self.x, self.y):  # no need to resize
             return
         self.x, self.y = x, y
