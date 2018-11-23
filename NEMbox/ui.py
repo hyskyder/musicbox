@@ -16,7 +16,7 @@ import datetime
 
 from future.builtins import range, str, int
 
-from .scrollstring import truelen, scrollstring
+from .scrollstring import truelen, scrollstring, cutstr
 from .storage import Storage
 from .config import Config
 
@@ -35,7 +35,7 @@ except ImportError:
 
 
 def break_str(s, start, max_len=80):
-    length = len(s)
+    length = truelen(s)
     i, x = 0, max_len
     res = []
     while i < length:
@@ -126,7 +126,7 @@ class Ui(object):
                           playing_flag,
                           playing_mode):
 
-        if not song or not playing_flag:
+        if not song:
             return
         name, artist = song['song_name'], song['artist']
         lyrics, tlyrics = song.get('lyric', []), song.get('tlyric', [])
@@ -161,7 +161,7 @@ class Ui(object):
         len_current_pos = max( int(barspace * current_pos / total_length) - 1, 0 )
         # log.debug("self.x="+str(self.x)+", barspace="+str(barspace)+"; CurrentPos="+str(len_current_pos)+"; DownPercent="+str(download_percent))
         process += '=' * len_current_pos
-        process += '>' if playing_flag else ')' 
+        process += '>' if playing_flag else '|' 
         len_current_pos+=1
         if download_percent:
             len_download_bar=max( int(barspace * download_percent) - len_current_pos, 0 ) 
@@ -260,11 +260,13 @@ class Ui(object):
         if datatype == 'main':
             for i in range(offset, min(len(datalist), offset + step)):
                 if i == index:
+                    self.addstr(i - offset + 9,0,' ' * self.x)
                     self.addstr(i - offset + 9,
                                 self.indented_startcol,
                                 '-> ' + str(i) + '. ' + datalist[i],
                                 curses.color_pair(2))
                 else:
+                    self.addstr(i - offset + 9,0,' ' * self.x)
                     self.addstr(i - offset + 9, self.startcol,
                                 str(i) + '. ' + datalist[i])
 
@@ -276,7 +278,7 @@ class Ui(object):
                 # this item is focus
                 if i == index:
                     self.addstr(i - offset + 8, 0,
-                                ' ' * self.startcol)
+                                ' ' * self.x)
                     lead = '-> ' + str(i) + '. '
                     self.addstr(i - offset + 8,
                                 self.indented_startcol, lead,
@@ -301,7 +303,7 @@ class Ui(object):
                             curses.color_pair(2))
                 else:
                     self.addstr(i - offset + 8, 0,
-                                ' ' * self.startcol)
+                                ' ' * self.x)
                     display_string='{}. {}{}{}  < {} >'.format(
                             i, datalist[i]['song_name'], self.space,
                             datalist[i]['artist'],
@@ -315,27 +317,33 @@ class Ui(object):
         elif datatype == 'comments':
             # 被选中的评论在最下方显示全部字符，其余评论仅显示一行
             for i in range(offset, min(len(datalist), offset + step)):
-                maxlength = min(int(1.8 * self.startcol), len(datalist[i]))
+                maxlength = min(self.x-10, truelen(datalist[i]))
+                self.addstr(i - offset + 9,0,' ' * self.x)
+                self.addstr(i - offset + 9, self.startcol,
+                        ("> " if i == index else "") +
+                        str(i) + '. ' + cutstr(datalist[i],maxlength))
+
                 if i == index:
+                    for clear_x in range (20, self.y):
+                       self.addstr(clear_x, 0,' ' * (self.x-1) )
                     self.addstr(
                         20, self.indented_startcol,
-                        '-> ' + str(i) + '. ' +
-                        break_str(datalist[i], self.indented_startcol, maxlength),
+                        '-> ' + str(i) + ". " + datalist[i].replace(":",":\n",1),
+                        # break_str(datalist[i], self.indented_startcol, maxlength),
                         curses.color_pair(2))
-                else:
-                    self.addstr(
-                        i - offset + 9, self.startcol,
-                        str(i) + '. ' + datalist[i][:maxlength])
+                    
 
         elif datatype == 'artists':
             for i in range(offset, min(len(datalist), offset + step)):
                 if i == index:
+                    self.addstr(i - offset + 9, 0,' ' * (self.x-1) )
                     self.addstr(
                         i - offset + 9, self.indented_startcol,
                         '-> ' + str(i) + '. ' + datalist[i]['artists_name'] +
                         self.space + str(datalist[i]['alias']),
                         curses.color_pair(2))
                 else:
+                    self.addstr(i - offset + 9, 0,' ' * (self.x-1) )
                     self.addstr(
                         i - offset + 9, self.startcol,
                         str(i) + '. ' + datalist[i]['artists_name'] +
@@ -371,11 +379,13 @@ class Ui(object):
         elif datatype == 'playlists':
             for i in range(offset, min(len(datalist), offset + step)):
                 if i == index:
+                    self.addstr(i - offset + 9, 0,' ' * (self.x-1) )
                     self.addstr(
                         i - offset + 9, self.indented_startcol,
                         '-> ' + str(i) + '. ' + datalist[i]['title'],
                         curses.color_pair(2))
                 else:
+                    self.addstr(i - offset + 9, 0,' ' * (self.x-1) )
                     self.addstr(
                         i - offset + 9, self.startcol,
                         str(i) + '. ' + datalist[i]['title'])
@@ -383,12 +393,14 @@ class Ui(object):
         elif datatype == 'top_playlists':
             for i in range(offset, min(len(datalist), offset + step)):
                 if i == index:
+                    self.addstr(i - offset + 9, 0,' ' * (self.x-1) )
                     self.addstr(
                         i - offset + 9, self.indented_startcol, '-> ' +
                         str(i) + '. ' + datalist[i]['playlist_name'] +
                         self.space + datalist[i]['creator_name'],
                         curses.color_pair(2))
                 else:
+                    self.addstr(i - offset + 9, 0,' ' * (self.x-1) )
                     self.addstr(
                         i - offset + 9, self.startcol,
                         str(i) + '. ' + datalist[i]['playlist_name'] +

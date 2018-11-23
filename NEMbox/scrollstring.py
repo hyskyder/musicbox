@@ -52,3 +52,13 @@ def truelen(string):
     0
     """
     return len(string) + sum(1 for c in string if c > chr(127))
+
+
+def cutstr(string,length=None):
+    if not length:
+        return string
+    result=string[:length]
+    while truelen(result) > length:
+        result=result[:-((truelen(result)-length+1)//2)]
+    return result
+        
