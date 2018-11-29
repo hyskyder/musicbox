@@ -1,15 +1,23 @@
 
 MusicBox ~ hy Edition
 =================
-网易云音乐命令行版本，适合小窗，简洁优雅，丝般顺滑，基于Python编写。
+网易云音乐命令行版本，**适合小窗**，简洁优雅，丝般顺滑，基于Python编写。
 
 [![platform](https://img.shields.io/badge/python-3.5-green.svg)]()
 
-更新日志
+小窗口：
 
-0.2.6.0~hy: 1. 通过mpg123的stdin播放音频，此模式下可以看歌曲的下载进度条. 2. 菜单缩进减少，更适合小窗，修复窗口resize问题.
+![图片：小窗口截图](https://github.com/hyskyder/musicbox/blob/pic/small_window.png)
 
-0.2.5.3 : 原版 musicbox
+![图片：大窗口截图](https://github.com/hyskyder/musicbox/blob/pic/large_window.png)
+
+### 更新日志
+
+0.2.5.4-hy: 合并 darknessomi/musicbox 0.2.5.4 中的一些代码: 1.缓存文件路径修改至 ~/.netseae-musicbox/nemcache.sqlite.  2.修复切换歌单时可能出现的切歌失败问题. 3.修复搜索歌曲出错. 4.修复“搜索->网易精选集“.
+
+0.2.5.3-hy: 1. 通过mpg123的stdin播放音频，此模式下可以看歌曲的下载进度条. 2. 菜单缩进减少，更适合小窗，修复窗口resize问题，进度条长度自适应。
+
+0.2.5.3 : 原版 darknessomi/musicbox
 
 已测试：
 
@@ -18,7 +26,7 @@ MusicBox ~ hy Edition
 	* python 3.5.2
 
 ### 安装与运行
-	1. 安装mpg123
+	1. 安装mpg123： (sudo) apt-get install mpg123
 	2. clone this to /path/to/musicbox
 	3. python3 -m /path/to/musicbox/NEMbox
 
@@ -184,6 +192,8 @@ mpg123 最新的版本可能会报找不到声音硬件的错误，测试了1.25
 Enjoy it !
 
 ### 更新日志
+
+2018-11-28 版本 0.2.5.4    修复多处错误
 
 2018-06-21 版本 0.2.5.3    修复多处播放错误
 
