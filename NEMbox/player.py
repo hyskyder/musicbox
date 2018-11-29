@@ -133,6 +133,11 @@ class Player(object):
     def is_index_valid(self):
         return 0 <= self.index < len(self.list)
 
+    def update_download_percent(self,id,percent):
+        if id != self.playing_id :
+            raise Exception("Song has changed.")
+        self.download_percent=percent
+
     def notify_playing(self):
         if not self.current_song:
             return
@@ -246,11 +251,11 @@ class Player(object):
             log.debug("Feed: Exit.")
 
         if WALKAROUND.mpg123_Stdin_Direct_Mode:
-            download_thread=MusicStreamer(url.encode('utf-8'))
+            self.download_percent=None
+            download_thread=MusicStreamer(url.encode('utf-8'),report_cb=self.update_download_percent,song_id=self.playing_id)
             download_thread.start()
             self.process_location = 0
             self.process_length = 1
-            self.download_percent=None
         
             local_popen_handler = subprocess.Popen(
                 ['mpg123', '-v','-'] + self.config_mpg123,
@@ -272,7 +277,6 @@ class Player(object):
                         current_pos=float(playtime[7:9])*60+float(playtime[10:15])
                         self.process_location = int(current_pos)
                         self.process_length = 60*int(playtime[17:19])+int(current_pos+float(playtime[20:25]))
-                        self.download_percent=download_thread.received_percent
                     elif "finished" in line:
                         play_next = True
                         break

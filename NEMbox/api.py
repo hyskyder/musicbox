@@ -628,15 +628,27 @@ class NetEase(object):
 class MusicStreamer(threading.Thread):
     MAX_CHUNK_SIZE=65536
 
-    def __init__(self,url,chunk_size=None):
+    def __init__(self,url,chunk_size=None,report_cb=lambda a,b : None,song_id=None):
         threading.Thread.__init__(self)
         self.url=url
         self._is_file=os.path.exists(self.url)
         self.chunk_size=chunk_size
         self.buffer=queue.Queue()
         self.received_percent=None
+        self.song_id=song_id
+        self.report_callback_func=report_cb if song_id is not None else (lambda a,b : None)
         self.retcode=255
         self.shutdown_signal=threading.Event()
+
+    def update_progress(self,progress):
+        if not progress:
+            return
+        self.received_percent = max(0.0,min(progress,1.0))
+        try:
+            self.report_callback_func(self.song_id,self.received_percent)
+        except Exception as e:
+            log.error(str(e)+"| Disable download call back.")
+            self.report_callback_func=lambda a,b : None
     
     def __network_streamming(self):
         headers={
@@ -661,7 +673,7 @@ class MusicStreamer(threading.Thread):
                                 break
                             received+=len(chunk)
                             self.buffer.put(chunk)
-                            self.received_percent = max(0,min(received/song_size,1)) if song_size else None
+                            self.update_progress(received/song_size if song_size else None)
                     else:
                         self.retcode=r.status_code
                         raise Exception("Bad response="+str(r.status_code))
@@ -677,7 +689,7 @@ class MusicStreamer(threading.Thread):
                       
     def run(self):
         if self._is_file:
-            self.received_percent=1
+            self.update_progress(1.0)
             if self.chunk_size is None:
                 self.chunk_size = 65536
             with open(self.url,'rb') as f:

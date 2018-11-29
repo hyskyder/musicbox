@@ -91,7 +91,7 @@ class Ui(object):
                 self.screen.addstr(args[0], args[1], args[2].encode('utf-8'), *args[3:])
             except Exception as e:
                 log.error(str(e)+"; args="+str(args)+
-                'when screen(y,x)='+str(self.y)+", "+str(self.x)+")")
+                ' when screen(y,x)='+str(self.y)+", "+str(self.x)+")")
 
     def build_playinfo(self,
                        song_name,
@@ -103,7 +103,7 @@ class Ui(object):
         curses.noecho()
         # refresh top 3 line
         for x in [0,1,2]:
-            self.addstr(x, 0, ' ' * self.x)
+            self.addstr(x, 0, ' ' * (self.x-1))
         if pause:
             self.addstr(0, self.indented_startcol,
                         '_ _ z Z Z ' + quality, curses.color_pair(3))
@@ -112,7 +112,7 @@ class Ui(object):
                         '♫  ♪ ♫  ♪ ' + quality, curses.color_pair(3))
 
         self.addstr(
-            0, min(self.indented_startcol + 18, self.x - 1),
+            0, min(self.indented_startcol + 18, self.x - 2),
             song_name + self.space + artist + '  < ' + album_name + ' >',
             curses.color_pair(4))
 
@@ -133,7 +133,7 @@ class Ui(object):
 
         curses.noecho()
         for x in [3,4,5]:
-            self.addstr(x, 0, ' ' * self.x)
+            self.addstr(x, 0, ' ' * (self.x-1))
         if total_length <= 0:
             total_length = 1
         if current_pos > total_length or current_pos < 0.5:
@@ -177,7 +177,7 @@ class Ui(object):
             return
 
         if not lyrics:
-            self.now_lyric = '暂无歌词 ~>_<~ \n'
+            self.now_lyric = '暂无歌词 ~>_<~'
             self.post_lyric = ''
             if dbus_activity and self.config.get('osdlyrics'):
                 self.now_playing = '{} - {}\n'.format(name, artist)
@@ -250,8 +250,9 @@ class Ui(object):
                    start):
         # keep playing info in line 1
         curses.noecho()
-        self.addstr(7, 0, ' ' * self.x)
+        self.addstr(7, 0, ' ' * (self.x-1))
         self.addstr(7, self.startcol, title, curses.color_pair(1))
+        self.addstr(8, 0, ' ' * (self.x-1))
 
         if len(datalist) == 0:
             self.addstr(8, self.startcol, '这里什么都没有 -，-')
@@ -260,13 +261,13 @@ class Ui(object):
         if datatype == 'main':
             for i in range(offset, min(len(datalist), offset + step)):
                 if i == index:
-                    self.addstr(i - offset + 9,0,' ' * self.x)
+                    self.addstr(i - offset + 9,0,' ' * (self.x-1))
                     self.addstr(i - offset + 9,
                                 self.indented_startcol,
                                 '-> ' + str(i) + '. ' + datalist[i],
                                 curses.color_pair(2))
                 else:
-                    self.addstr(i - offset + 9,0,' ' * self.x)
+                    self.addstr(i - offset + 9,0,' ' * (self.x-1))
                     self.addstr(i - offset + 9, self.startcol,
                                 str(i) + '. ' + datalist[i])
 
@@ -278,7 +279,7 @@ class Ui(object):
                 # this item is focus
                 if i == index:
                     self.addstr(i - offset + 8, 0,
-                                ' ' * self.x)
+                                ' ' * (self.x-1))
                     lead = '-> ' + str(i) + '. '
                     self.addstr(i - offset + 8,
                                 self.indented_startcol, lead,
@@ -303,7 +304,7 @@ class Ui(object):
                             curses.color_pair(2))
                 else:
                     self.addstr(i - offset + 8, 0,
-                                ' ' * self.x)
+                                ' ' * (self.x-1))
                     display_string='{}. {}{}{}  < {} >'.format(
                             i, datalist[i]['song_name'], self.space,
                             datalist[i]['artist'],
@@ -318,7 +319,7 @@ class Ui(object):
             # 被选中的评论在最下方显示全部字符，其余评论仅显示一行
             for i in range(offset, min(len(datalist), offset + step)):
                 maxlength = min(self.x-10, truelen(datalist[i]))
-                self.addstr(i - offset + 9,0,' ' * self.x)
+                self.addstr(i - offset + 9,0,' ' * (self.x-1))
                 self.addstr(i - offset + 9, self.startcol,
                         ("> " if i == index else "") +
                         str(i) + '. ' + cutstr(datalist[i],maxlength))
