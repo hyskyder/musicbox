@@ -433,12 +433,14 @@ class Player(object):
     def append_songs(self, datalist):
         self.add_songs(datalist)
 
-    def play_or_pause(self, idx):
+    # switch_flag为true表示：
+    # 在播放列表中 || 当前所在列表类型不在"songs"、"djchannels"、"fmsongs"中
+    def play_or_pause(self, idx, switch_flag):
         if self.is_empty:
             return
 
         # if same "list index" and "playing index" --> same song :: pause/resume it
-        if self.index == idx:
+        if self.index == idx and switch_flag:
             if not self.popen_handler:
                 self.replay()
             else:

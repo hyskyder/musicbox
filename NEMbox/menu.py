@@ -90,7 +90,7 @@ class Menu(object):
         self.title = '网易云音乐'
         self.datalist = [
             '排行榜', '艺术家', '新碟上架', '精选歌单', '我的歌单',
-            '主播电台', '每日推荐', '私人FM', '搜索', '帮助'
+            '主播电台', '每日推荐歌曲', '每日推荐歌单', '私人FM', '搜索', '帮助'
         ]
         self.offset = 0
         self.index = 0
@@ -159,10 +159,7 @@ class Menu(object):
         self.ui.screen.timeout(-1)
         SearchArg = namedtuple('SearchArg', ['prompt', 'api_type', 'post_process'])
         category_map = {
-            'songs': SearchArg(
-                '搜索歌曲：', 1,
-                lambda datalist: self.api.songs_url([s['id'] for s in datalist])
-            ),
+            'songs': SearchArg('搜索歌曲：', 1, lambda datalist: datalist),
             'albums': SearchArg('搜索专辑：', 10, lambda datalist: datalist),
             'artists': SearchArg('搜索艺术家：', 100, lambda datalist: datalist),
             'playlists': SearchArg('搜索网易精选集：', 1000, lambda datalist: datalist)
@@ -430,23 +427,25 @@ class Menu(object):
                     self.player.new_player_list('songs', self.title,
                                                 self.datalist, -1)
                     self.player.end_callback = None
-                    self.player.play_or_pause(idx)
+                    self.player.play_or_pause(idx, self.at_playing_list)
                     self.at_playing_list = True
                 elif datatype == 'djchannels':
                     self.player.new_player_list('djchannels', self.title,
                                                 self.datalist, -1)
                     self.player.end_callback = None
-                    self.player.play_or_pause(idx)
+                    self.player.play_or_pause(idx, self.at_playing_list)
                     self.at_playing_list = True
                 elif datatype == 'fmsongs':
                     self.player.change_mode(0)
                     self.player.new_player_list('fmsongs', self.title,
                                                 self.datalist, -1)
                     self.player.end_callback = self.fm_callback
-                    self.player.play_or_pause(idx)
+                    self.player.play_or_pause(idx, self.at_playing_list)
                     self.at_playing_list = True
                 else:
-                    self.player.play_or_pause(self.player.info['idx'])
+                    # 所在列表类型不是歌曲
+                    isNotSongs = True
+                    self.player.play_or_pause(self.player.info['idx'], isNotSongs)
 
             # 加载当前播放列表
             elif key == ord('p'):
@@ -669,14 +668,14 @@ class Menu(object):
             self.title += ' > ' + datalist[idx]['albums_name']
 
         # 精选歌单选项
-        elif datatype == 'playlists':
+        elif datatype == 'recommend_lists':
             data = self.datalist[idx]
             self.datatype = data['datatype']
             self.datalist = netease.dig_info(data['callback'](), self.datatype)
             self.title += ' > ' + data['title']
 
         # 全站置顶歌单包含的歌曲
-        elif datatype == 'top_playlists':
+        elif datatype in ['top_playlists', 'playlists']:
             playlist_id = datalist[idx]['playlist_id']
             songs = netease.playlist_detail(playlist_id)
             self.datatype = 'songs'
@@ -780,7 +779,8 @@ class Menu(object):
             self.index = self.player.info['idx']
             self.offset = self.index // self.step * self.step
             if not self.player.playing_flag:
-                self.player.play_or_pause(self.index)
+                switch_flag = False
+                self.player.play_or_pause(self.index, switch_flag)
 
     def request_api(self, func, *args):
         result = func(*args)
@@ -826,7 +826,7 @@ class Menu(object):
                 'callback': lambda: []
             }]
             self.title += ' > 精选歌单'
-            self.datatype = 'playlists'
+            self.datatype = 'recommend_lists'
         elif idx == 4:
             myplaylist = self.request_api(self.api.user_playlist, self.userid)
             self.datatype = 'top_playlists'
@@ -837,19 +837,26 @@ class Menu(object):
             self.title += ' > 主播电台'
             self.datalist = self.api.djchannels()
         elif idx == 6:
-            myplaylist = self.request_api(self.api.recommend_resource)
-            self.datatype = 'top_playlists'
-            self.title += ' > 每日推荐'
+            self.datatype = 'songs'
+            self.title += ' > 每日推荐歌曲'
+            myplaylist = self.request_api(self.api.recommend_playlist)
+            if myplaylist == -1:
+                return
             self.datalist = self.api.dig_info(myplaylist, self.datatype)
         elif idx == 7:
+            myplaylist = self.request_api(self.api.recommend_resource)
+            self.datatype = 'top_playlists'
+            self.title += ' > 每日推荐歌单'
+            self.datalist = self.api.dig_info(myplaylist, self.datatype)
+        elif idx == 8:
             self.datatype = 'fmsongs'
             self.title += ' > 私人FM'
             self.datalist = self.get_new_fm()
-        elif idx == 8:
+        elif idx == 9:
             self.datatype = 'search'
             self.title += ' > 搜索'
             self.datalist = ['歌曲', '艺术家', '专辑', '网易精选集']
-        elif idx == 9:
+        elif idx == 10:
             self.datatype = 'help'
             self.title += ' > 帮助'
             self.datalist = shortcut

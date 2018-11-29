@@ -13,7 +13,10 @@ import json
 import os
 from collections import OrderedDict
 from http.cookiejar import LWPCookieJar
+from http.cookiejar import Cookie
 
+import platform
+import time
 import requests
 import requests_cache
 import threading
@@ -25,11 +28,12 @@ except:
 
 
 from .config import Config
+from .const import Constant
 from .storage import Storage
 from .encrypt import encrypted_request
 from . import logger
 
-requests_cache.install_cache('nemcache', expire_after=3600)
+requests_cache.install_cache(Constant.cache_path, expire_after=3600)
 
 log = logger.getLogger(__name__)
 
@@ -165,7 +169,9 @@ class Parse(object):
                 'album_name': album_name,
                 'album_id': album_id,
                 'mp3_url': url,
-                'quality': quality
+                'quality': quality,
+                'expires': song['expires'],
+                'get_time': song['get_time']
             }
             song_info_list.append(song_info)
         return song_info_list
@@ -252,7 +258,28 @@ class NetEase(object):
             )
         return resp
 
-    def request(self, method, path, params={}, default={'code': -1}):
+    # 生成Cookie对象
+    def make_cookie(self, name, value):
+        return Cookie(
+            version=0,
+            name=name,
+            value=value,
+            port=None,
+            port_specified=False,
+            domain="music.163.com",
+            domain_specified=True,
+            domain_initial_dot=False,
+            path="/",
+            path_specified=True,
+            secure=False,
+            expires=None,
+            discard=False,
+            comment=None,
+            comment_url=None,
+            rest=None
+        )
+
+    def request(self, method, path, params={}, default={'code': -1}, custom_cookies={}):
         endpoint = '{}{}'.format(BASE_URL, path)
         csrf_token = ''
         for cookie in self.session.cookies:
@@ -261,6 +288,10 @@ class NetEase(object):
                 break
         params.update({'csrf_token': csrf_token})
         data = default
+
+        for key, value in custom_cookies.items():
+            cookie = self.make_cookie(key, value)
+            self.session.cookies.set_cookie(cookie)
 
         params = encrypted_request(params)
         try:
@@ -318,6 +349,17 @@ class NetEase(object):
     def recommend_resource(self):
         path = '/weapi/v1/discovery/recommend/resource'
         return self.request('POST', path).get('recommend', [])
+
+    # 每日推荐歌曲
+    def recommend_playlist(self, total=True, offset=0, limit=20):
+        path = '/weapi/v1/discovery/recommend/songs'  # NOQA
+        params = dict(
+            total=total,
+            offset=offset,
+            limit=limit,
+            csrf_token=''
+        )
+        return self.request('POST', path, params).get('recommend', []);
 
     # 私人FM
     def personal_fm(self):
@@ -394,7 +436,11 @@ class NetEase(object):
             n=1000,
             offest=0
         )
-        return self.request('POST', path, params).get('playlist', {}).get('tracks', [])
+        # cookie添加os字段
+        custom_cookies = dict(
+            os=platform.system()
+        )
+        return self.request('POST', path, params, {'code': -1}, custom_cookies).get('playlist', {}).get('tracks', [])
 
     # 热门歌手 http://music.163.com/#/discover/artist/
     def top_artists(self, offset=0, limit=100):
@@ -530,6 +576,7 @@ class NetEase(object):
             return []
         if dig_type == 'songs' or dig_type == 'fmsongs':
             urls = self.songs_url([s['id'] for s in data])
+            timestamp = time.time()
             # api 返回的 urls 的 id 顺序和 data 的 id 顺序不一致
             # 为了获取到对应 id 的 url，对返回的 urls 做一个 id2index 的缓存
             # 同时保证 data 的 id 顺序不变
@@ -543,7 +590,24 @@ class NetEase(object):
                     continue
                 s['url'] = urls[url_index]['url']
                 s['br'] = urls[url_index]['br']
+                s['expires'] = urls[url_index]['expi']
+                s['get_time'] = timestamp
             return Parse.songs(data)
+
+        elif dig_type == 'refresh_urls':
+            urls_info = self.songs_url(data)
+            timestamp = time.time()
+
+            songs = []
+            for url_info in urls_info:
+                song = {}
+                song['song_id'] = url_info['id']
+                song['mp3_url'] = url_info['url']
+                song['expires'] = url_info['expi']
+                song['get_time'] = timestamp
+                songs.append(song)
+            return songs
+
         elif dig_type == 'artists':
             return Parse.artists(data)
 
