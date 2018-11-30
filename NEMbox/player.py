@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 # @Author: omi
 # @Date:   2014-07-15 15:48:27
-# @Last Modified by:   omi
-# @Last Modified time: 2015-01-30 18:05:08
+# @Last Modified by:   AlanAlbert
+# @Last Modified time: 2018-11-21 14:00:00
 '''
 网易云音乐 Player
 '''
@@ -175,6 +175,18 @@ class Player(object):
                 self.songs[song_id].update(song)
             else:
                 self.songs[song_id] = song
+
+    def refresh_urls(self):
+        songs = self.api.dig_info(self.list, 'refresh_urls')
+        if songs:
+            for song in songs:
+                song_id = str(song['song_id'])
+                if song_id in self.songs:
+                    self.songs[song_id]['mp3_url'] = song['mp3_url']
+                    self.songs[song_id]['expires'] = song['expires']
+                    self.songs[song_id]['get_time'] = song['get_time']
+                else:
+                    self.songs[song_id] = song
 
     def stop(self):
         if not self.popen_handler:
@@ -413,6 +425,10 @@ class Player(object):
 
         if not self.current_song:
             return
+
+        if self.current_song['expires'] >= 0 and self.current_song['get_time'] >= 0 and time.time() - self.current_song['expires'] - self.current_song['get_time'] >= 0:
+            log.debug("URL过期，刷新URL.");
+            self.refresh_urls()
 
         self.playing_flag = True
         self.build_playinfo()

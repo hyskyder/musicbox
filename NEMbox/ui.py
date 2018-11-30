@@ -113,7 +113,7 @@ class Ui(object):
 
         self.addstr(
             0, min(self.indented_startcol + 18, self.x - 2),
-            song_name + self.space + artist + '  < ' + album_name + ' >',
+            cutstr(song_name + self.space + artist + '  < ' + album_name + ' >',(self.x-1)*2-20),
             curses.color_pair(4))
 
         self.screen.refresh()
