@@ -104,16 +104,18 @@ class Ui(object):
         # refresh top 3 line
         for x in [0,1,2]:
             self.addstr(x, 0, ' ' * (self.x-1))
-        if pause:
-            self.addstr(0, self.indented_startcol,
-                        '_ _ z Z Z ' + quality, curses.color_pair(3))
+
+        if self.x<30:
+            prompt= ('z Z ' if pause else '♫  ♪ ')
         else:
-            self.addstr(0, self.indented_startcol,
-                        '♫  ♪ ♫  ♪ ' + quality, curses.color_pair(3))
+            prompt= ('_ _ z Z Z ' + quality if pause else '♫  ♪ ♫  ♪ ' + quality )
+
+        self.addstr(0, self.indented_startcol,
+                        prompt , curses.color_pair(3))
 
         self.addstr(
-            0, min(self.indented_startcol + 18, self.x - 2),
-            cutstr(song_name + self.space + artist + '  < ' + album_name + ' >',(self.x-1)*2-20),
+            0, min(self.indented_startcol + len(prompt) + 1, self.x - 2),
+            cutstr(str(song_name) + self.space + str(artist) + '  < ' + str(album_name) + ' >',(self.x-1)*2-truelen(prompt)),
             curses.color_pair(4))
 
         self.screen.refresh()
@@ -142,24 +144,23 @@ class Ui(object):
             self.now_lyric_index = 0
             self.now_lyric = ''
             self.post_lyric = ''
-        if playing_mode == 0:
-            process = '顺序播放 ' 
-        elif playing_mode == 1:
-            process = '顺序循环 ' 
-        elif playing_mode == 2:
-            process = '单曲循环 ' 
-        elif playing_mode == 3:
-            process = '随机播放 ' 
-        elif playing_mode == 4:
-            process = '随机循环 ' 
+        
+        if self.x>=30:
+            playmode_str_mapping={
+                0: '顺序播放 ',
+                1: '顺序循环 ',
+                2: '单曲循环 ',
+                3: '随机播放 ',
+                4: '随机循环 '
+            }
+            process=playmode_str_mapping.get(playing_mode,'')
         else:
-            pass
+            process=''
         process += '['
-        now = str(datetime.timedelta(seconds=current_pos)).lstrip('0').lstrip(':')
-        total = str(datetime.timedelta(seconds=total_length)).lstrip('0').lstrip(':')
+        now =  str(datetime.timedelta(seconds=current_pos)).lstrip('0').lstrip(':')
+        total = ( str(datetime.timedelta(seconds=total_length)).lstrip('0').lstrip(':') if self.x>=30 else '' )
         barspace=max(self.x-1-truelen(process)-3-truelen(now)-1-truelen(total)-2,0)
         len_current_pos = max( int(barspace * current_pos / total_length) - 1, 0 )
-        # log.debug("self.x="+str(self.x)+", barspace="+str(barspace)+"; CurrentPos="+str(len_current_pos)+"; DownPercent="+str(download_percent))
         process += '=' * len_current_pos
         process += '>' if playing_flag else '|' 
         len_current_pos+=1
@@ -170,7 +171,10 @@ class Ui(object):
         else:
             process += ' ' * max( barspace - len_current_pos , 0 )
         process += '] '
-        process += '({}/{})'.format(now, total)
+        if self.x>=30:
+            process += '({}/{})'.format(now, total)
+        else:
+            process += '({})'.format(now)
         self.addstr(2, 1, process, curses.color_pair(1))
 
         if self.x <= 3:
