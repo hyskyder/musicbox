@@ -240,11 +240,11 @@ class Player(object):
             self.popen_handler.stdin.flush()
         
         self.build_playinfo()
-    
+
     def run_mpg123(self, on_exit, url):
         def feed_mpg123_worker(buffer,pipe,source_alive=lambda : False,MAX_WAIT=64):
-            wait_blocks=2
-            while buffer.qsize()<4 and source_alive():
+            wait_blocks=3
+            while buffer.qsize()<6 and source_alive():
                 time.sleep(0.25)
             for chunk in iter(buffer.get,b"#END#"):
                 try:
@@ -261,6 +261,12 @@ class Player(object):
             except:
                 pass
             log.debug("Feed: Exit.")
+
+        if not url or "mp3" not in url:
+            self.notify_copyright_issue()
+            time.sleep(0.5)
+            self.next()
+            return
 
         if WALKAROUND.mpg123_Stdin_Direct_Mode:
             self.download_percent=None
@@ -293,15 +299,17 @@ class Player(object):
                         play_next = True
                         break
                     elif "err" in line:
-                        log.debug("mgp123: "+line.strip())
+                        log.warning("mgp123: "+line.strip())
+                        break
                     if download_thread.poll() is not None and download_thread.poll()>0:
-                        if download_thread.poll() == 403:
+                        if download_thread.poll() in (403,503):
+                            self.notify_copyright_issue()
                             play_next = True
                         break
                     if self.popen_handler is None or local_popen_handler.poll() is not None:
                         break
             except Exception as e:
-                log.note(e)
+                log.error(e)
                 play_next = False
             self.playing_flag = play_next
             download_thread.shutdown_signal.set()
@@ -360,6 +368,8 @@ class Player(object):
         
         download_thread.join()
         feed_thread.join()
+        del download_thread
+        del feed_thread
 
         if play_next:
             self.next()

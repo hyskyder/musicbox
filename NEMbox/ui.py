@@ -68,7 +68,7 @@ class Ui(object):
         # term resize handling
         size = terminalsize.get_terminal_size()
         self.x = max(size[0], 10)
-        self.y = max(size[1], 3)
+        self.y = max(size[1], 2)
         self.startcol = 3
         self.indented_startcol = max(self.startcol - 3, 0)
         self.update_space()
@@ -85,7 +85,7 @@ class Ui(object):
         if len(args) == 1:
             self.screen.addstr(args[0])
         else:
-            if args[0]>=self.y or args[1]>=self.x :
+            if args[0]>=self.y or args[1]>=(self.x-1) :
                 return
             try:
                 self.screen.addstr(args[0], args[1], args[2].encode('utf-8'), *args[3:])
@@ -103,9 +103,6 @@ class Ui(object):
 
         terminalsize.set_terminal_title_xterm(str(song_name) + self.space + str(artist))
 
-        if self.y<2:
-            return
-
         curses.noecho()
         # refresh top 3 line
         for x in [0,1,2]:
@@ -121,7 +118,7 @@ class Ui(object):
 
         self.addstr(
             0, min(self.indented_startcol + len(prompt) + 1, self.x - 2),
-            cutstr(str(song_name) + self.space + str(artist) + '  < ' + str(album_name) + ' >',(self.x-1)*2-truelen(prompt)),
+            cutstr(str(song_name) + self.space + str(artist) + '  < ' + str(album_name) + ' >', (self.x-1)*min(2,self.y)-truelen(prompt)),
             curses.color_pair(4))
 
         self.screen.refresh()
@@ -135,15 +132,16 @@ class Ui(object):
                           playing_mode):
 
         if not song:
-            return
-        name, artist = song['song_name'], song['artist']
+            song={}
+            current_pos=total_length=download_percent=0
+
+        name, artist = song.get('song_name',''), song.get('artist','')
         lyrics, tlyrics = song.get('lyric', []), song.get('tlyric', [])
 
         curses.noecho()
         for x in [3,4,5]:
             self.addstr(x, 0, ' ' * (self.x-1))
-        if total_length <= 0:
-            total_length = 1
+
         if current_pos > total_length or current_pos < 0.5:
             current_pos = 0
         if current_pos == 0:
@@ -166,7 +164,7 @@ class Ui(object):
         now =  str(datetime.timedelta(seconds=current_pos)).lstrip('0').lstrip(':')
         total = ( str(datetime.timedelta(seconds=total_length)).lstrip('0').lstrip(':') if self.x>=30 else '' )
         barspace=max(self.x-1-truelen(process)-3-truelen(now)-1-truelen(total)-2,0)
-        len_current_pos = max( int(barspace * current_pos / total_length) - 1, 0 )
+        len_current_pos = max( int(barspace * current_pos / max(total_length,0.0001)) - 1, 0 )
         process += '=' * len_current_pos
         process += '>' if playing_flag else '|' 
         len_current_pos+=1
@@ -181,7 +179,8 @@ class Ui(object):
             process += '({}/{})'.format(now, total)
         else:
             process += '({})'.format(now)
-        self.addstr(2, 1, process, curses.color_pair(1))
+
+        self.addstr(2 if self.y>2 else 1, 0, process, curses.color_pair(1))
 
         if self.x <= 3:
             return
@@ -557,10 +556,11 @@ class Ui(object):
         # get terminal size
         size = terminalsize.get_terminal_size()
         x = max(size[0], 10)
-        y = max(size[1], 3)
+        y = max(size[1], 2)
         if (x, y) == (self.x, self.y):  # no need to resize
             return
         self.x, self.y = x, y
+        # log.debug("Terminal Size x,y = {} , {}".format(self.x, self.y))
 
         # update intendations
         curses.resizeterm(self.y, self.x)

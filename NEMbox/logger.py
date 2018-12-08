@@ -21,7 +21,7 @@ with open(FILE_NAME, 'a+') as f:
 
 def getLogger(name):
     log = logging.getLogger(name)
-    log.setLevel(logging.DEBUG)
+    log.setLevel(logging.INFO)
 
     # File output handler
     fh = logging.FileHandler(FILE_NAME)
