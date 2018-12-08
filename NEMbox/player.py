@@ -40,7 +40,7 @@ class Player(object):
     MODE_RANDOM = 3
     MODE_RANDOM_LOOP = 4
 
-    def __init__(self,ui_instance):
+    def __init__(self,ui_instance,api_instance):
         self.config = Config()
         self.ui = ui_instance
         self.popen_handler = None
@@ -52,7 +52,7 @@ class Player(object):
         self.cache = Cache()
         self.end_callback = None
         self.playing_song_changed_callback = None
-        self.api = NetEase()
+        self.api = api_instance
         self.download_percent=None
 
     @property

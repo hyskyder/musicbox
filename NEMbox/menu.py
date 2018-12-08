@@ -13,7 +13,6 @@ import time
 import curses
 import threading
 import sys
-import os
 import signal
 import webbrowser
 import locale
@@ -97,12 +96,12 @@ class Menu(object):
         self.storage = Storage()
         self.storage.load()
         self.collection = self.storage.database['collections']
-        self.ui = Ui()
-        self.player = Player(self.ui)
-        self.player.playing_song_changed_callback = self.song_changed_callback
-        self.cache = Cache()
         self.api = NetEase()
         self.screen = curses.initscr()
+        self.ui = Ui(self.screen)
+        self.player = Player(self.ui,self.api)
+        self.player.playing_song_changed_callback = self.song_changed_callback
+        self.cache = Cache()
         self.screen.keypad(1)
         self.step = 10
         self.stack = []
@@ -188,36 +187,39 @@ class Menu(object):
         curses.endwin()
         sys.exit()
 
-    def update_alert(self, version):
-        latest = Menu().check_version()
-        if latest != version and latest != 0:
-            notify('MusicBox Update is available', 1)
-            time.sleep(0.5)
-            notify('NetEase-MusicBox installed version:' + version +
-                   '\nNetEase-MusicBox latest version:' + latest, 0)
+    def async_checkin_and_check_update(self, version):
+        def __checkin_and_check_update(version):
+            try:
+                mobile = self.api.daily_task(is_mobile=True)
+                pc = self.api.daily_task(is_mobile=False)
 
-    def check_version(self):
-        # 检查更新 && 签到
+                if mobile['code'] == 200:
+                    notify('移动端签到成功', 1)
+                    time.sleep(2)
+                if pc['code'] == 200:
+                    notify('PC端签到成功', 1)
+                log.debug("Start-up Checkin: mobile={}, PC={}".format(mobile['code'],pc['code'] ))
+            except Exception as e:
+                log.error(e)
+
+            latest=self.check_new_version()
+            if latest != version and latest != 0:
+                notify('MusicBox Update is available', 1)
+                time.sleep(0.5)
+                notify('NetEase-MusicBox installed version:' + version +
+                        '\nNetEase-MusicBox latest version:' + latest, 0)
+
+        t=threading.Thread(target=__checkin_and_check_update,args=(version,))
+        t.start()
+        return t
+
+    def check_new_version(self):
+        # 检查更新
         try:
-            mobile = self.api.daily_task(is_mobile=True)
-            pc = self.api.daily_task(is_mobile=False)
-
-            if mobile['code'] == 200:
-                notify('移动端签到成功', 1)
-            if pc['code'] == 200:
-                notify('PC端签到成功', 1)
-
             data = self.api.get_version()
             return data['info']['version']
         except KeyError as e:
             return 0
-
-    def start_fork(self, version):
-        pid = os.fork()
-        if pid == 0:
-            Menu().update_alert(version)
-        else:
-            Menu().start()
 
     def play_pause(self):
         if self.player.is_empty:

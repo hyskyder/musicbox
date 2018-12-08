@@ -9,7 +9,6 @@ from __future__ import (
 import curses
 import traceback
 import argparse
-import sys
 
 from future.builtins import str
 
@@ -24,17 +23,21 @@ def start():
                         help="show this version and exit",
                         action="store_true")
     args = parser.parse_args()
+
+    NEMBox_core = Menu()
+
     if args.version:
-        latest = Menu().check_version()
+        latest = NEMBox_core.check_new_version()
         curses.endwin()
         print('NetEase-MusicBox installed version:' + version)
         if latest != version:
             print('NetEase-MusicBox latest version:' + str(latest))
-        sys.exit()
+        return
 
-    nembox_menu = Menu()
     try:
-        nembox_menu.start_fork(version)
+        NEMBox_core.async_checkin_and_check_update(version)
+        NEMBox_core.start()
+
     except (OSError, TypeError, ValueError, KeyError, IndexError):
         # clean up terminal while failed
         curses.echo()

@@ -46,8 +46,8 @@ def break_str(s, start, max_len=80):
 
 class Ui(object):
 
-    def __init__(self):
-        self.screen = curses.initscr()
+    def __init__(self,screen_instance):
+        self.screen = screen_instance
         self.screen.timeout(100)  # the screen refresh every 100ms
         # charactor break buffer
         curses.cbreak()
@@ -100,6 +100,12 @@ class Ui(object):
                        quality,
                        start,
                        pause=False):
+
+        terminalsize.set_terminal_title_xterm(str(song_name) + self.space + str(artist))
+
+        if self.y<2:
+            return
+
         curses.noecho()
         # refresh top 3 line
         for x in [0,1,2]:

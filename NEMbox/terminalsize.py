@@ -4,6 +4,7 @@ from __future__ import (
 )
 
 import os
+import sys
 import shlex
 import struct
 import platform
@@ -15,6 +16,7 @@ from . import logger
 
 log = logger.getLogger(__name__)
 
+current_os = platform.system()
 
 def get_terminal_size():
     ''' getTerminalSize()
@@ -23,7 +25,6 @@ def get_terminal_size():
      originally retrieved from:
      http://stackoverflow.com/questions/566746/how-to-get-console-window-width-in-python
     '''
-    current_os = platform.system()
     tuple_xy = None
     if current_os == 'Windows':
         tuple_xy = _get_terminal_size_windows()
@@ -99,6 +100,9 @@ def _get_terminal_size_linux():
             return None
     return int(cr[1]), int(cr[0])
 
+def set_terminal_title_xterm(title):
+    if (current_os in ['Linux', 'Darwin'] or current_os.startswith('CYGWIN')) and sys.stdout.isatty():
+        sys.stdout.write("\x1b]2;{}\x07".format(title))
 
 if __name__ == '__main__':
     sizex, sizey = get_terminal_size()
