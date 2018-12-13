@@ -627,6 +627,7 @@ class NetEase(object):
 
 class MusicStreamer(threading.Thread):
     MAX_CHUNK_SIZE=65536
+    STREAM_END_MAGIC=b"#END#"
 
     def __init__(self,url,chunk_size=None,report_cb=lambda a,b : None,song_id=None):
         threading.Thread.__init__(self)
@@ -677,9 +678,9 @@ class MusicStreamer(threading.Thread):
                     else:
                         self.retcode=r.status_code
                         raise Exception("Bad response="+str(r.status_code))
-                
-            except TimeoutError:
-                self.retcode=1
+
+            except requests.exceptions.Timeout:
+                self.retcode=-1
                 self.shutdown_signal.set()
             except Exception as e:
                 log.error(e)
@@ -702,7 +703,7 @@ class MusicStreamer(threading.Thread):
             self.retcode=0
         else:
             self.__network_streamming()
-        self.buffer.put(b"#END#")
+        self.buffer.put(MusicStreamer.STREAM_END_MAGIC)
         log.debug("Streamer: exit, retcode="+str(self.retcode))
     
     def poll(self):

@@ -246,7 +246,7 @@ class Player(object):
             wait_blocks=3
             while buffer.qsize()<6 and source_alive():
                 time.sleep(0.25)
-            for chunk in iter(buffer.get,b"#END#"):
+            for chunk in iter(buffer.get,MusicStreamer.STREAM_END_MAGIC):
                 try:
                     pipe.buffer.write(chunk)
                     if buffer.empty():
@@ -260,11 +260,12 @@ class Player(object):
                 pipe.close()
             except:
                 pass
+            del buffer, pipe, source_alive
             log.debug("Feed: Exit.")
 
         if not url or "mp3" not in url:
             self.notify_copyright_issue()
-            time.sleep(0.5)
+            time.sleep(2)
             self.next()
             return
 
@@ -364,12 +365,10 @@ class Player(object):
 
         if local_popen_handler.poll() is None:
             local_popen_handler.terminate()
-        del local_popen_handler
-        
+
         download_thread.join()
         feed_thread.join()
-        del download_thread
-        del feed_thread
+        del local_popen_handler, download_thread, feed_thread
 
         if play_next:
             self.next()

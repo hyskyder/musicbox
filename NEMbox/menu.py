@@ -408,6 +408,7 @@ class Menu(object):
                         self.api.fm_trash, self.player.playing_id)
                     if return_data:
                         notify('Deleted successfully!', 0)
+                    self.menu_starts = time.time()
 
             # 下一FM
             elif key == ord('/'):
@@ -416,6 +417,7 @@ class Menu(object):
                         continue
                     if self.player.end_callback:
                         self.player.end_callback()
+                    self.menu_starts = time.time()
 
             # 播放、暂停
             elif key == ord(' '):
@@ -453,6 +455,7 @@ class Menu(object):
             # 加载当前播放列表
             elif key == ord('p'):
                 self.show_playing_song()
+                self.menu_starts = time.time()
 
             # 播放模式切换
             elif key == ord('P'):
@@ -484,6 +487,7 @@ class Menu(object):
                             self.offset = i - i % step
                             self.index = i
                             break
+                self.menu_starts = time.time()
 
             # 添加到打碟歌单
             elif key == ord('a'):
