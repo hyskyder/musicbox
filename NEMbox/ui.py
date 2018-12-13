@@ -259,6 +259,10 @@ class Ui(object):
                    start):
         # keep playing info in line 1
         curses.noecho()
+
+        if self.y<=6:
+            return
+
         self.addstr(7, 0, ' ' * (self.x-1))
         self.addstr(7, self.startcol, title, curses.color_pair(1))
         self.addstr(8, 0, ' ' * (self.x-1))

@@ -8,14 +8,14 @@ from __future__ import (
 
 import platform
 import subprocess
-import os
+import os,sys
 from collections import OrderedDict
 
 from future.builtins import str
 
 
 __all__ = [
-    'utf8_data_to_file', 'notify', 'uniq', 'create_dir', 'create_file'
+    'utf8_data_to_file', 'notify', 'uniq', 'create_dir', 'create_file','SessionScreenLockDetector'
 ]
 
 
@@ -86,6 +86,43 @@ def notify(msg, msg_type=0, t=None):
     except OSError as e:
         return False
 
+
+
+try:
+    import dbus
+except:
+    pass
+
+class SessionScreenLockDetector(object):
+
+    def __init__(self):
+        self.valid=False
+        if 'Linux' not in platform.system() or "dbus" not in sys.modules:
+            # Not implemented
+            return
+
+        session_bus = dbus.SessionBus()
+        screensaver_list = ['org.gnome.ScreenSaver',
+                            'org.cinnamon.ScreenSaver',
+                            'org.kde.screensaver',
+                            'org.freedesktop.ScreenSaver']
+
+        for each in screensaver_list:
+            try:
+                object_path = '/{0}'.format(each.replace('.', '/'))
+                self.screen_saver = dbus.Interface(session_bus.get_object(each, object_path), each)
+                bool(self.screen_saver.GetActive())
+            except dbus.exceptions.DBusException:
+                pass
+            else:
+                self.valid=True
+                break
+
+    def is_locked(self):
+        if not self.valid:
+            return False
+        else:
+            return bool(self.screen_saver.GetActive())
 
 if __name__ == "__main__":
     notify("I'm test \"\"quote", msg_type=1, t=1000)
