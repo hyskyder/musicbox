@@ -638,7 +638,7 @@ class MusicStreamer(threading.Thread):
         self.received_percent=None
         self.song_id=song_id
         self.report_callback_func=report_cb if song_id is not None else (lambda a,b : None)
-        self.retcode=255
+        self.retcode=-1
         self.shutdown_signal=threading.Event()
 
     def update_progress(self,progress):
@@ -665,7 +665,7 @@ class MusicStreamer(threading.Thread):
         s = requests.Session()
         with s.cache_disabled(): # requests-cache is not compatible with stream=True
             try:
-                with closing(s.get(self.url, headers=headers, stream=True, timeout=(5,12))) as r:
+                with closing(s.get(self.url, headers=headers, stream=True, timeout=(5,15))) as r:
                     if r.status_code == 200:
                         song_size=int(r.headers['content-length']) if ('content-length' in r.headers) else None
                         received=0
@@ -678,8 +678,8 @@ class MusicStreamer(threading.Thread):
                     else:
                         self.retcode=r.status_code
                         raise Exception("Bad response="+str(r.status_code))
-
-            except requests.exceptions.Timeout:
+            except requests.ConnectionError as e:
+                log.error(e)
                 self.retcode=-1
                 self.shutdown_signal.set()
             except Exception as e:
@@ -687,7 +687,7 @@ class MusicStreamer(threading.Thread):
                 self.shutdown_signal.set()
             else:
                 self.retcode=0
-                      
+
     def run(self):
         if self._is_file:
             self.update_progress(1.0)
@@ -704,8 +704,8 @@ class MusicStreamer(threading.Thread):
         else:
             self.__network_streamming()
         self.buffer.put(MusicStreamer.STREAM_END_MAGIC)
-        log.debug("Streamer: exit, retcode="+str(self.retcode))
-    
+        log.debug("Streamer: exit, retcode={}".format(self.retcode))
+
     def poll(self):
         if self.is_alive():
             return None

@@ -238,34 +238,37 @@ class Player(object):
         else:
             self.popen_handler.stdin.write(b'P\n')
             self.popen_handler.stdin.flush()
-        
+
         self.build_playinfo()
 
     def run_mpg123(self, on_exit, url):
-        def feed_mpg123_worker(buffer,pipe,source_alive=lambda : False,MAX_WAIT=64):
-            wait_blocks=3
+        def feed_mpg123_worker(buffer,pipe,source_alive=lambda : False,MAX_WAIT=128):
+            wait_blocks=4
             while buffer.qsize()<6 and source_alive():
-                time.sleep(0.25)
-            for chunk in iter(buffer.get,MusicStreamer.STREAM_END_MAGIC):
-                try:
+                time.sleep(0.25) 
+            try:
+                for chunk in iter(buffer.get,MusicStreamer.STREAM_END_MAGIC):
                     pipe.buffer.write(chunk)
                     if buffer.empty():
                         wait_blocks=min(wait_blocks*2,MAX_WAIT)
                         while buffer.qsize()<wait_blocks and source_alive():
                             time.sleep(0.25)
-                except Exception as e:
-                    log.warning(e)
-                    break
+                    if buffer.empty():
+                        break
+            except Exception as e:
+                log.warning(e)
+            else:
+                log.debug("Feed: Normal End.")
+
             try:
                 pipe.close()
             except:
                 pass
             del buffer, pipe, source_alive
-            log.debug("Feed: Exit.")
 
         if not url or "mp3" not in url:
+            time.sleep(4)
             self.notify_copyright_issue()
-            time.sleep(2)
             self.next()
             return
 
@@ -302,13 +305,19 @@ class Player(object):
                     elif "err" in line:
                         log.warning("mgp123: "+line.strip())
                         break
+                    elif self.popen_handler is None or local_popen_handler.poll() is not None:
+                        break
+                    elif not feed_thread.is_alive():
+                        play_next = True
+                        break
+
                     if download_thread.poll() is not None and download_thread.poll()>0:
+                        log.debug("detect download_thread anomaly. retcode="+str(download_thread.poll()))
                         if download_thread.poll() in (403,503):
                             self.notify_copyright_issue()
                             play_next = True
                         break
-                    if self.popen_handler is None or local_popen_handler.poll() is not None:
-                        break
+
             except Exception as e:
                 log.error(e)
                 play_next = False
@@ -436,7 +445,7 @@ class Player(object):
             return
 
         if self.current_song['expires'] >= 0 and self.current_song['get_time'] >= 0 and time.time() - self.current_song['expires'] - self.current_song['get_time'] >= 0:
-            log.debug("URL过期，刷新URL.");
+            log.debug("URL过期，刷新URL.")
             self.refresh_urls()
 
         self.playing_flag = True
