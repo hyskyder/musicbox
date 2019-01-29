@@ -335,7 +335,7 @@ class Ui(object):
                 self.addstr(i - offset + 9,0,' ' * (self.x-1))
                 self.addstr(i - offset + 9, self.startcol,
                         ("> " if i == index else "") +
-                        str(i) + '. ' + cutstr(datalist[i],maxlength))
+                        str(i) + '. ' + cutstr(datalist[i].split('\n')[0],maxlength))
 
                 if i == index:
                     for clear_x in range (20, self.y):
