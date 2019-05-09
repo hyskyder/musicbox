@@ -266,9 +266,7 @@ class Player(object):
                 pass
             del buffer, pipe, source_alive
 
-        if not url or "mp3" not in url:
-            time.sleep(4)
-            self.notify_copyright_issue()
+        if not url:
             self.next()
             return
 
@@ -304,6 +302,8 @@ class Player(object):
                         break
                     elif "err" in line:
                         log.warning("mgp123: "+line.strip())
+                        time.sleep(2)
+                        play_next = True
                         break
                     elif self.popen_handler is None or local_popen_handler.poll() is not None:
                         break

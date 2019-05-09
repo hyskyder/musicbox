@@ -276,7 +276,7 @@ class NetEase(object):
             discard=False,
             comment=None,
             comment_url=None,
-            rest=None
+            rest={}
         )
 
     def request(self, method, path, params={}, default={'code': -1}, custom_cookies={}):
@@ -300,7 +300,8 @@ class NetEase(object):
         except requests.exceptions.RequestException as e:
             log.error(e)
         except ValueError as e:
-            log.error('Path: {}, response: {}'.format(path, resp.text[:200]))
+            log.error('Path: {}, response {}: {}; error: {}'.format(
+                path, resp.status_code, resp.text[:200],str(e)))
         finally:
             return data
 
@@ -324,7 +325,10 @@ class NetEase(object):
                 rememberLogin='true',
                 clientToken=client_token
             )
-        data = self.request('POST', path, params)
+        custom_cookies = dict(
+            os=platform.system()
+        )
+        data = self.request('POST', path, params,custom_cookies=custom_cookies)
         self.session.cookies.save()
         return data
 
@@ -583,6 +587,8 @@ class NetEase(object):
             url_id_index = {}
             for index, url in enumerate(urls):
                 url_id_index[url['id']] = index
+
+            songs_data = []    
             for s in data:
                 url_index = url_id_index.get(s['id'])
                 if url_index is None:
@@ -592,7 +598,8 @@ class NetEase(object):
                 s['br'] = urls[url_index]['br']
                 s['expires'] = urls[url_index]['expi']
                 s['get_time'] = timestamp
-            return Parse.songs(data)
+                songs_data.append(s)
+            return Parse.songs(songs_data)
 
         elif dig_type == 'refresh_urls':
             urls_info = self.songs_url(data)

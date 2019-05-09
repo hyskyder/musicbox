@@ -165,8 +165,8 @@ class Ui(object):
         total = ( str(datetime.timedelta(seconds=total_length)).lstrip('0').lstrip(':') if self.x>=30 else '' )
         barspace=max(self.x-1-truelen(process)-3-truelen(now)-1-truelen(total)-2,0)
         len_current_pos = max( int(barspace * current_pos / max(total_length,0.0001)) - 1, 0 )
-        process += '=' * len_current_pos
-        process += '>' if playing_flag else '|' 
+        process += '|' * len_current_pos
+        process += '>' if playing_flag else 'S' 
         len_current_pos+=1
         if download_percent:
             len_download_bar=max( int(barspace * download_percent) - len_current_pos, 0 ) 

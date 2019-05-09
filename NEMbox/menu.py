@@ -623,6 +623,14 @@ class Menu(object):
         self.storage.save()
         curses.endwin()
 
+        for t in threading.enumerate():
+            log.debug("Residue Thread {id}: {n} {liveness}; ".format(
+                id=t.ident,
+                n=t.name,
+                liveness="Live" if t.is_alive() else "Dead"
+                )
+            )
+
     def dispatch_enter(self, idx):
         # The end of stack
         netease = self.api
